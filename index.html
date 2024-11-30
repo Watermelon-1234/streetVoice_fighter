@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StreetVoice MP3 Downloader</title>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
+</head>
+<body>
+  <h1>StreetVoice MP3 Downloader</h1>
+  <label for="song-id">Enter Song ID:</label>
+  <input type="text" id="song-id" placeholder="e.g., 703692" />
+  <button id="download-btn">Download</button>
+  <p id="status"></p>
+
+  <script>
+    async function downloadSong() {
+      const songId = document.getElementById('song-id').value;
+      const status = document.getElementById('status');
+      const corsProxy = "https://cors-anywhere.herokuapp.com/";
+      status.textContent = "Fetching song data...";
+
+      try {
+        // Step 1: Fetch the .m3u8 URL
+        const response = await fetch(`${corsProxy}https://streetvoice.com/api/v5/song/${songId}/hls/file/`, {
+          method: 'POST',
+          headers: {
+            "Origin": "https://github.com", // 必須設置 Origin
+            "X-Requested-With": "XMLHttpRequest" // 或設置 X-Requested-With
+          },
+        });
+        const data = await response.json();
+        const m3u8Url = data.file;
+
+        if (!m3u8Url) {
+          status.textContent = "Error: Unable to fetch .m3u8 URL.";
+          return;
+        }
+
+        status.textContent = "Downloading and converting song...";
+
+        // Step 2: Initialize FFmpeg.js
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: true });
+
+        await ffmpeg.load();
+        ffmpeg.FS('writeFile', 'input.m3u8', await fetchFile(m3u8Url));
+
+        // Step 3: Convert .m3u8 to .mp3
+        await ffmpeg.run('-i', 'input.m3u8', '-c', 'copy', 'output.mp3');
+        const dataMp3 = ffmpeg.FS('readFile', 'output.mp3');
+
+        // Step 4: Create a download link
+        const mp3Blob = new Blob([dataMp3.buffer], { type: 'audio/mp3' });
+        const mp3Url = URL.createObjectURL(mp3Blob);
+        const a = document.createElement('a');
+        a.href = mp3Url;
+        a.download = `streetVoice_${songId}.mp3`;
+        a.click();
+
+        status.textContent = "Download completed!";
+      } catch (error) {
+        console.error("Error:", error);
+        status.textContent = "An error occurred. Check the console for details.";
+      }
+    }
+
+    document.getElementById('download-btn').addEventListener('click', downloadSong);
+  </script>
+</body>
+</html>

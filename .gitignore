@@ -1,0 +1,7 @@
+*.mp3
+/link_analyze
+/build/
+/dist/
+/streatvoice_fighter/
+*.spec
+*.m3u8
