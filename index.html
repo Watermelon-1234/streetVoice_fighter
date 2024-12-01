@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StreetVoice MP3 Downloader</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.1/dist/ffmpeg.min.js"></script>
+  <script src="./ffmpeg/v0126/ffmpeg.js"></script>
 </head>
 <body>
   <h1>StreetVoice MP3 Downloader</h1>
@@ -41,7 +41,11 @@
 
         // Step 2: Initialize FFmpeg.js
         const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
+        const ffmpeg = createFFmpeg(
+          { 
+            log: true,
+          }
+        );
 
         await ffmpeg.load();
         ffmpeg.FS('writeFile', 'input.m3u8', await fetchFile(m3u8Url));
