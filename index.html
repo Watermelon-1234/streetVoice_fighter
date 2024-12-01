@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>StreetVoice MP3 Downloader</title>
-  <script src="./ffmpeg/v0126/ffmpeg.js"></script>
+  <script src="https://raw.githubusercontent.com/josephrocca/clip-image-sorter/refs/heads/main/enable-threads.js"></script>
+  <!-- <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script> -->
+  <!-- <script src="https://unpkg.com/browse/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script> -->
+  <script src="./ffmpeg/v0.10.0/ffmpeg.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.10/umd/ffmpeg.min.js" integrity="sha512-j2FJMGBh+AdPWKCKDqIzH67vu4ps8OsNZqqetz8YSlbwy2ZwFTL+p6Hp1j17nL0B7IDl9E4zhPUXZKwz7MzjQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
 </head>
 <body>
   <h1>StreetVoice MP3 Downloader</h1>
@@ -25,7 +29,7 @@
         const response = await fetch(`${corsProxy}https://streetvoice.com/api/v5/song/${songId}/hls/file/`, {
           method: 'POST',
           headers: {
-            "Origin": "https://github.com", // 必須設置 Origin
+            "Origin": "https://streetvoice.com", // 必須設置 Origin
             "X-Requested-With": "XMLHttpRequest" // 或設置 X-Requested-With
           },
         });
@@ -40,14 +44,29 @@
         status.textContent = "Downloading and converting song...";
 
         // Step 2: Initialize FFmpeg.js
+        // 從全域物件中解構出功能
+        // const { FFmpeg } = window.FFmpegWASM; // 確保 FFmpegWASM 是正確載入的物件
+        // console.log(FFmpeg);
+        // const { createFFmpeg, fetchFile } = window.FFmpegWASM; // 確保 FFmpegUtil 是正確載入的物件
+        // const { createFFmpeg, fetchFile } = window.FFmpegUtil; // 確保 FFmpegUtil 是正確載入的物件
+        
         const { createFFmpeg, fetchFile } = FFmpeg;
         const ffmpeg = createFFmpeg(
-          { 
-            log: true,
+        { 
+          log: true,
+            corePath: 'ffmpeg/v0.10.0/ffmpeg-core.js',
           }
         );
+        // const ffmpeg = new FFmpeg();
+
+        // ffmpeg.on('log',(logMessage) => {
+        //   console.log('FFmpeg log:', logMessage);
+        // });
 
         await ffmpeg.load();
+
+        console.log("already loaded!")
+
         ffmpeg.FS('writeFile', 'input.m3u8', await fetchFile(m3u8Url));
 
         // Step 3: Convert .m3u8 to .mp3
