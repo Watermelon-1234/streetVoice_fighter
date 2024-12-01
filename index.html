@@ -67,10 +67,10 @@
 
         console.log("already loaded!")
 
-        ffmpeg.FS('writeFile', 'input.m3u8', await fetchFile(m3u8Url));
+        // ffmpeg.FS('writeFile', 'input.m3u8', await fetchFile(m3u8Url));
 
         // Step 3: Convert .m3u8 to .mp3
-        await ffmpeg.run('-i', 'input.m3u8', '-c', 'copy', 'output.mp3');
+        await ffmpeg.run('-i', /*'input.m3u8'*/m3u8Url, '-c', 'copy', 'output.mp3');
         const dataMp3 = ffmpeg.FS('readFile', 'output.mp3');
 
         // Step 4: Create a download link
