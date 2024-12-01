@@ -9,15 +9,180 @@
   <!-- <script src="https://unpkg.com/browse/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script> -->
   <script src="./ffmpeg/v0.10.0/ffmpeg.min.js"></script>
   <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.12.10/umd/ffmpeg.min.js" integrity="sha512-j2FJMGBh+AdPWKCKDqIzH67vu4ps8OsNZqqetz8YSlbwy2ZwFTL+p6Hp1j17nL0B7IDl9E4zhPUXZKwz7MzjQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
+  <style>
+    /* 全局樣式 */
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #1c1f26; /* 深灰藍背景 */
+    color: #ffffff; /* 白色文字 */
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  /* 頁面容器 */
+  .container {
+    max-width: 400px;
+    width: 90%;
+    padding: 20px;
+    background-color: #2b2f38; /* 深灰背景 */
+    border-radius: 15px; /* 圓角 */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    text-align: center;
+  }
+
+  /* 標題樣式 */
+  h1 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    color: #a5b4dc; /* 淡灰藍色 */
+  }
+
+  /* 輸入框 */
+  input[type="text"] {
+    width: 80%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #3a3f4c; /* 深灰色邊框 */
+    border-radius: 10px;
+    background-color: #242830; /* 更深的灰藍背景 */
+    color: #ffffff; /* 白色文字 */
+    font-size: 16px;
+  }
+
+  /* 按鈕樣式 */
+  button {
+    width: 100%;
+    padding: 10px 20px;
+    background-color: #4e73df; /* 灰藍色 */
+    color: #ffffff; /* 白色文字 */
+    border: none;
+    border-radius: 10px; /* 圓角 */
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  /* 按鈕 hover 效果 */
+  button:hover {
+    background-color: #375bb5; /* 深一點的灰藍色 */
+  }
+
+  /* 狀態文字 */
+  #status {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #a5b4dc; /* 淡灰藍色 */
+  }
+
+  </style>
 </head>
 <body>
   <h1>StreetVoice MP3 Downloader</h1>
-  <label for="song-id">Enter Song ID:</label>
-  <input type="text" id="song-id" placeholder="e.g., 703692" />
-  <button id="download-btn">Download</button>
-  <p id="status"></p>
-
+  <div class="container">
+    <label style="margin: 5%;" for="song-id"><strong>Enter Song ID:</strong></label>
+    <input type="text" id="song-id" placeholder="e.g., 703692" />
+    <button id="download-btn">Download</button>
+    <p id="status"></p>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
   <script>
+    async function downloadSong() {
+    const songId = document.getElementById('song-id').value;
+    const status = document.getElementById('status');
+    if( songId < 100000 || songId > 999999)
+    {
+      status.textContent = "you enter a invalid id, please make sure the id is number like \'XXXXXX\'";
+      return ;
+    }
+    const corsProxy = "https://cors-anywhere.herokuapp.com/";
+    status.textContent = "Fetching song data...";
+
+    try {
+      // Step 1: Fetch the .m3u8 URL
+      const response = await fetch(`${corsProxy}https://streetvoice.com/api/v5/song/${songId}/hls/file/`, {
+        method: 'POST',
+        headers: {
+          "Origin": "https://streetvoice.com",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
+      const data = await response.json();
+      const m3u8Url = data.file;
+
+      if (!m3u8Url) {
+        status.textContent = "Error: Unable to fetch .m3u8 URL.";
+        return;
+      }
+
+      status.textContent = "Downloading song segments...";
+
+      // Step 2: Use HLS.js to fetch and parse the .m3u8 content
+      const hls = new Hls();
+      hls.loadSource(m3u8Url);
+
+      // Custom logic to capture segments
+      const segments = await new Promise((resolve, reject) => {
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          const levels = hls.levels[0].details; // Extract playlist details
+          const segmentUrls = levels.fragments.map(fragment => fragment.url); // Get all segment URLs
+          resolve(segmentUrls);
+        });
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          reject(data);
+        });
+      });
+
+      if (!segments || segments.length === 0) {
+        status.textContent = "Error: No segments found in the .m3u8.";
+        return;
+      }
+
+      // Step 3: Fetch all segment files
+      const segmentData = [];
+      for (let i = 0; i < segments.length; i++) {
+        const segmentUrl = segments[i];
+        const response = await fetch(segmentUrl);
+        if (response.ok) {
+          const segmentBlob = await response.arrayBuffer();
+          segmentData.push(segmentBlob);
+        } else {
+          console.warn(`Failed to download segment: ${segmentUrl}`);
+        }
+        status.textContent = `Downloading segment ${i + 1} of ${segments.length}...`;
+      }
+
+      if (segmentData.length === 0) {
+        status.textContent = "Error: Failed to fetch segments.";
+        return;
+      }
+
+      status.textContent = "Merging segments into a single file...";
+
+      // Step 4: Merge segments and create Blob
+      const mergedBlob = new Blob(segmentData, { type: 'audio/mp4' });
+      const mergedUrl = URL.createObjectURL(mergedBlob);
+
+      // Step 5: Create download link
+      const a = document.createElement('a');
+      a.href = mergedUrl;
+      a.download = `streetVoice_${songId}.mp4`; // Output format depends on HLS codec
+      a.click();
+
+      status.textContent = "Download completed!";
+    } catch (error) {
+      console.error("Error:", error);
+      status.textContent = "An error occurred. Check the console for details.";
+    }
+  }
+
+  document.getElementById('download-btn').addEventListener('click', downloadSong);
+  </script>
+  <!-- <script>
     async function downloadSong() {
       const songId = document.getElementById('song-id').value;
       const status = document.getElementById('status');
@@ -89,6 +254,6 @@
     }
 
     document.getElementById('download-btn').addEventListener('click', downloadSong);
-  </script>
+  </script> -->
 </body>
 </html>
