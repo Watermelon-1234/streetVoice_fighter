@@ -176,6 +176,11 @@
       status.textContent = "Download completed!";
     } catch (error) {
       console.error("Error:", error);
+      if (error.message.includes("403")) {
+        alert("伺服器拒絕訪問，請點擊下方連結以請求暫時的存取權限，然後重試。");
+        window.open("https://cors-anywhere.herokuapp.com/https://streetvoice.com/api/v5/song/703692/hls/file/", "_blank");
+        status.textContent = "請完成存取權限申請後再重試。";
+      }
       status.textContent = "An error occurred. Check the console for details.";
     }
   }
